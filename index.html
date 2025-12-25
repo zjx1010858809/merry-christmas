@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Christmas For You</title>
+    <title>Merry Christmas</title>
     <style>
-        /* 基础设置 */
-        body, html { margin: 0; padding: 0; overflow: hidden; background-color: #000; height: 100%; font-family: "Microsoft YaHei", sans-serif; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background-color: #000; height: 100%; font-family: sans-serif; }
         canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
 
         /* UI 层 */
@@ -16,53 +15,47 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
 
-        /* 1. 开场 */
+        /* 启动页 */
         #start-screen {
             pointer-events: auto;
             background: #000;
             width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 1.5s ease-in-out;
+            transition: opacity 1s;
             position: absolute; top: 0; left: 0; z-index: 200;
         }
 
         .btn-play {
-            padding: 16px 48px;
+            padding: 15px 50px;
             font-size: 1.2rem;
             color: #fff;
-            background: linear-gradient(90deg, #ff0033, #cc00cc);
-            border: none;
-            border-radius: 50px;
+            background: linear-gradient(to right, #e60073, #ff3300);
+            border: none; border-radius: 50px;
             cursor: pointer;
-            box-shadow: 0 0 25px rgba(255, 0, 51, 0.5);
-            font-weight: bold;
-            letter-spacing: 3px;
-            animation: breathe 2s infinite;
+            box-shadow: 0 0 20px rgba(230, 0, 115, 0.6);
+            font-weight: bold; letter-spacing: 2px;
+            animation: pulse 1.5s infinite;
         }
-        @keyframes breathe { 0% { transform: scale(1); box-shadow: 0 0 25px rgba(255,0,51,0.5); } 50% { transform: scale(1.05); box-shadow: 0 0 40px rgba(204,0,204,0.8); } 100% { transform: scale(1); box-shadow: 0 0 25px rgba(255,0,51,0.5); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* 2. 字幕 */
+        /* 字幕 */
         #subtitle {
-            position: absolute; bottom: 12%; width: 100%; text-align: center;
-            color: #fff; font-size: 1.2rem; letter-spacing: 3px;
-            text-shadow: 0 0 8px rgba(255,255,255,0.8);
-            opacity: 0; transition: opacity 1.5s; font-weight: 300;
+            position: absolute; bottom: 15%; width: 100%; text-align: center;
+            color: #fff; font-size: 1.2rem;
+            text-shadow: 0 0 5px #000; opacity: 0; transition: opacity 0.5s;
         }
 
-        /* 3. 最终祝福 */
+        /* 最终文字 */
         #final-msg {
             position: absolute; top: 15%; width: 100%; text-align: center;
-            opacity: 0; transition: opacity 3s; pointer-events: none;
-            z-index: 300;
+            opacity: 0; transition: opacity 2s; pointer-events: none; z-index: 300;
         }
         .msg-title {
-            font-size: 3rem; color: #FFD700; font-weight: bold; margin-bottom: 15px;
-            text-shadow: 0 0 30px #FFD700;
-            font-family: 'Times New Roman', serif;
+            font-size: 3rem; color: #FFD700; font-weight: bold; margin-bottom: 10px;
+            text-shadow: 0 0 20px #FFD700; font-family: serif;
         }
         .msg-body {
-            font-size: 1.1rem; color: #eee; line-height: 1.8; letter-spacing: 1px;
-            text-shadow: 0 2px 5px #000; font-weight: bold;
+            font-size: 1.3rem; color: #fff; font-weight: bold; text-shadow: 0 2px 4px #000;
         }
     </style>
 </head>
@@ -70,21 +63,16 @@
 
 <div id="ui-layer">
     <div id="start-screen">
-        <button class="btn-play" onclick="startCinematic()">🎄 点亮圣诞树</button>
-        <p style="color:#555; font-size:12px; margin-top:15px;">全屏观看体验更佳</p>
+        <button class="btn-play" onclick="startShow()">🎁 开启礼物</button>
     </div>
     <div id="subtitle"></div>
     <div id="final-msg">
         <div class="msg-title">Merry Christmas</div>
-        <div class="msg-body">
-            老婆，愿你的生活<br>
-            如这棵树般 枝繁叶茂，光芒万丈 ❤️
-        </div>
+        <div class="msg-body">老婆，圣诞快乐 ❤️</div>
     </div>
 </div>
 
 <canvas id="canvas"></canvas>
-
 <audio id="bgm" loop>
     <source src="https://music.163.com/song/media/outer/url?id=1860000632.mp3" type="audio/mpeg">
 </audio>
@@ -102,8 +90,8 @@
     let startTime = 0;
     let isPlaying = false;
     
-    // 增加粒子数，保证树干和底部填充
-    const PARTICLE_COUNT = 3800; 
+    // 手机端流畅的粒子数量
+    const PARTICLE_COUNT = 2800; 
     
     function resize() {
         width = canvas.width = window.innerWidth;
@@ -113,183 +101,136 @@
     resize();
 
     // ==========================================
-    //           核心粒子系统 (修正版)
+    //           核心粒子 (优化版)
     // ==========================================
     class Particle {
         constructor() {
-            // 随机数决定类型：15%树干，85%树冠
+            // 决定角色：树干 or 树冠
             const randType = Math.random();
-            
-            // --- 树干逻辑 (TRUNK) ---
+            this.h = Math.random(); 
+
+            // --- 关键调整：树的大小与位置 ---
+            // 底部Y: 300 (屏幕中下方)
+            // 顶部Y: 300 - 850 = -550 (向上延伸850像素)
+            // 这样保证树尖在屏幕内，且树足够大
+            const baseHeight = 300;
+            const treeHeight = 850;
+
             if (randType < 0.15) {
+                // 树干
                 this.role = 'trunk';
-                // 树干是圆柱体，稍微有点圆锥感（底部略宽）
-                const h = Math.random(); // 0-1
-                // 树干高度：从底部(300) 到 中部(-100)
-                this.ty = 300 - h * 400; 
-                
-                // 树干半径：底部宽(40)，顶部窄(15)
-                const maxR = 40 - h * 25; 
-                const r = maxR * Math.sqrt(Math.random()); // 内部填充
+                this.ty = baseHeight - this.h * (treeHeight * 0.4); // 树干只占下半部分
+                const maxR = 30 - this.h * 20; 
+                const r = maxR * Math.sqrt(Math.random());
                 const angle = Math.random() * Math.PI * 2;
-                
                 this.tx = Math.cos(angle) * r;
                 this.tz = Math.sin(angle) * r;
-                
-                // 颜色：深棕色/木色
-                const lightness = 15 + Math.random() * 20;
-                this.color = `hsl(${25 + Math.random()*10}, 60%, ${lightness}%)`;
-                this.size = 2 + Math.random() * 2;
-                this.type = 'wood';
-            } 
-            // --- 树冠逻辑 (TREE BODY) ---
-            else {
+                this.color = `hsl(${25+Math.random()*10}, 50%, ${20+Math.random()*20}%)`; // 棕色
+                this.size = 2;
+            } else {
+                // 树冠
                 this.role = 'tree';
-                this.h = Math.random(); 
-                
-                // --- 修正1：高度调整 ---
-                // 旧版范围 950，导致顶部溢出
-                // 新版：底部 280，顶部 -480 (总高760)，确保在屏幕内
-                this.ty = 280 - this.h * 760;
+                this.ty = baseHeight - 20 - this.h * treeHeight; 
 
-                // --- 修正2：底部加宽填充 ---
-                // 使用 pow(x, 0.8) 让底部曲线更饱满
-                const widthFactor = Math.pow(1 - this.h, 0.8);
-                const maxR = Math.min(width, height) * 0.42 * widthFactor; 
+                // 宽度控制：pow(0.7)让底部更胖一点，三角形更明显
+                const widthFactor = Math.pow(1 - this.h, 0.7);
+                // 限制最大宽度，防止超出屏幕边缘
+                const maxR = Math.min(width, height) * 0.45 * widthFactor;
                 
-                // 内部填充算法
-                const r = maxR * Math.sqrt(Math.random()); 
-                const angle = Math.random() * Math.PI * 2 * 12; 
+                const r = maxR * Math.sqrt(Math.random());
+                const angle = Math.random() * Math.PI * 2 * 12;
                 
                 this.tx = Math.cos(angle) * r;
                 this.tz = Math.sin(angle) * r;
 
-                // 颜色与类型
+                // 颜色
                 const subRand = Math.random();
-                if (subRand < 0.05) { 
+                if (subRand < 0.05) { // 星光
                     this.type = 'star'; this.color = '#fff'; this.size = 2.5; 
-                } else if (subRand < 0.20) { 
+                } else if (subRand < 0.2) { // 彩灯
                     this.type = 'light'; 
-                    this.color = Math.random() > 0.6 ? '#FFD700' : `hsl(${Math.random()*360}, 100%, 65%)`;
+                    this.color = Math.random()>0.5 ? '#FFD700' : `hsl(${Math.random()*360}, 100%, 60%)`;
                     this.size = 3; 
-                } else { 
+                } else { // 叶子
                     this.type = 'leaf'; 
-                    // 底部叶子深色，顶部嫩绿
-                    const l = 15 + this.h * 20 + Math.random()*20;
-                    this.color = `hsl(${110 + Math.random()*40}, 70%, ${l}%)`; 
-                    this.size = 1.6; 
+                    const l = 20 + this.h * 30; // 顶部亮，底部暗
+                    this.color = `hsl(${110+Math.random()*40}, 80%, ${l}%)`; 
+                    this.size = 1.8; 
                 }
             }
 
-            // 初始状态：散布在底部的巨大光盘
-            const floorAngle = Math.random() * Math.PI * 2;
-            const floorR = 100 + Math.random() * 700;
-            this.x = Math.cos(floorAngle) * floorR;
+            // 初始位置：屏幕下方随机散开
+            const startAngle = Math.random() * Math.PI * 2;
+            const startR = 200 + Math.random() * 600;
+            this.x = Math.cos(startAngle) * startR;
             this.y = 800; // 屏幕下方
-            this.z = Math.sin(floorAngle) * floorR;
-
+            this.z = Math.sin(startAngle) * startR;
+            
             this.wobble = Math.random() * 100;
         }
 
         update(timeline) {
-            // --- A: 旋转等待 (0-5s) ---
-            if (timeline < 5000) {
-                const rotSpeed = 0.003;
-                const dist = Math.sqrt(this.x*this.x + this.z*this.z);
-                const angle = Math.atan2(this.z, this.x) + rotSpeed;
-                this.x = Math.cos(angle) * dist;
-                this.z = Math.sin(angle) * dist;
-                this.y = 800 + Math.sin(timeline * 0.002 + this.wobble) * 10;
-            }
-            
-            // --- B: 螺旋汇聚 (5-14s) ---
-            else if (timeline < 14000) {
-                const progress = (timeline - 5000) / 9000;
+            // A: 螺旋上升 (0-8秒)
+            if (timeline < 8000) {
+                const progress = timeline / 8000;
+                // 延迟起飞
+                let delay = (1 - this.h) * 0.5; // 底部先飞
+                if (this.role === 'trunk') delay = 0;
                 
-                // 树干先飞，树冠后飞
-                let delay = this.role === 'trunk' ? 0 : (1 - this.h) * 0.3;
+                let p = (progress - delay) / (1 - delay);
+                if (p < 0) p = 0;
                 
-                let p = Math.max(0, (progress - delay) / (1 - delay));
-                p = p < 0.5 ? 2*p*p : -1+(4-2*p)*p; // EaseInOut
+                // 缓动
+                p = p*p*(3-2*p); 
 
                 if (p > 0) {
-                    // 高度插值
                     this.y = 800 + (this.ty - 800) * p;
                     
-                    // 螺旋半径插值
+                    // 螺旋收缩
                     const currentDist = Math.sqrt(this.x*this.x + this.z*this.z);
                     const targetDist = Math.sqrt(this.tx*this.tx + this.tz*this.tz);
                     
-                    // 树干直接对齐，树冠螺旋
-                    if (this.role === 'trunk') {
-                        this.x += (this.tx - this.x) * 0.1;
-                        this.z += (this.tz - this.z) * 0.1;
-                    } else {
-                        // 螺旋逻辑
-                        const r = currentDist + (targetDist - currentDist) * p * 0.15;
-                        const originalAngle = Math.atan2(this.z, this.x);
-                        const spin = p * (8 + this.h * 5); 
-                        const angle = originalAngle + spin;
-                        
-                        if (p < 0.9) {
-                            const spiralR = 600 * (1-p) + targetDist * p;
-                            this.x = Math.cos(angle) * spiralR;
-                            this.z = Math.sin(angle) * spiralR;
-                        } else {
-                            this.x += (this.tx - this.x) * 0.1;
-                            this.z += (this.tz - this.z) * 0.1;
-                        }
-                    }
+                    const r = currentDist + (targetDist - currentDist) * p;
+                    
+                    // 旋转角度
+                    const originalAngle = Math.atan2(this.z, this.x);
+                    const spin = (1-p) * 10; 
+                    const angle = originalAngle + spin;
+                    
+                    this.x = Math.cos(angle) * r;
+                    this.z = Math.sin(angle) * r;
                 }
-            }
-            
-            // --- C: 稳定期 (14s+) ---
+            } 
+            // B: 稳定显示 (8秒+)
             else {
-                // 强力吸附
                 this.x += (this.tx - this.x) * 0.1;
                 this.y += (this.ty - this.y) * 0.1;
                 this.z += (this.tz - this.z) * 0.1;
-                
-                // --- 修正3：减弱摇晃 ---
-                if (timeline > 16000) {
-                    // 风力系数从 5 降到 1.5，只有树冠摇，树干不摇
-                    if (this.role === 'tree') {
-                        const wind = Math.sin(timeline * 0.002 + this.y * 0.005) * (this.h * 1.5);
-                        this.x += wind; 
-                        this.z += wind * 0.5;
-                    }
+
+                // 微风摇摆 (大幅减弱，只摇树梢)
+                if (timeline > 10000 && this.role === 'tree') {
+                    const wind = Math.sin(timeline * 0.002 + this.y * 0.01) * (this.h * 1.5);
+                    this.x += wind;
                 }
             }
 
-            // --- 3D 投影与运镜 ---
-            let camY, camZ;
-            
-            if (timeline < 5000) {
-                camY = -1200; camZ = -200;
-            } else if (timeline < 14000) {
-                const p = (timeline - 5000) / 9000;
-                camY = -1200 + p * 1200; 
-                camZ = -200 + p * (-700); 
-            } else {
-                // --- 修正4：视角调整 ---
-                // CamY = 0 (垂直居中)
-                // CamZ = -900 (拉得更远一点，保证能看到树尖)
-                camY = 0; 
-                camZ = -900; 
-            }
+            // --- 3D 投影与相机 ---
+            // 相机位置固定，确保能看到全貌
+            // camY=0 (居中), camZ=-1100 (拉远，防止树顶被切)
+            const camY = 0; 
+            const camZ = -1100; 
 
-            // 整体缓慢旋转
+            // 树成型后的自转
             let finalX = this.x;
             let finalZ = this.z;
-            if (timeline > 14000) {
-                const rot = (timeline - 14000) * 0.0003;
+            if (timeline > 9000) {
+                const rot = (timeline - 9000) * 0.0005;
                 const cos = Math.cos(rot);
                 const sin = Math.sin(rot);
                 finalX = this.x * cos - this.z * sin;
                 finalZ = this.z * cos + this.x * sin;
             }
 
-            // 投影
             const perspective = 600;
             const scale = perspective / (perspective + finalZ - camZ);
             
@@ -304,41 +245,60 @@
             ctx.beginPath();
             ctx.arc(this.px, this.py, this.size * this.scale, 0, Math.PI * 2);
             
-            // 星河汇聚特效 (全蓝)
-            if (timeline > 5000 && timeline < 14000) {
-                if (this.role === 'trunk') {
-                    ctx.fillStyle = '#8B4513'; // 树干保持原色
+            // 螺旋阶段：统一用亮色，制造流光感
+            if (timeline < 8000) {
+                if (this.role === 'tree') {
+                    ctx.fillStyle = `hsl(${180 + timeline*0.01}, 100%, 70%)`; // 蓝->紫变化
                 } else {
-                    ctx.fillStyle = '#00FFFF';
-                    ctx.shadowBlur = 8 * this.scale;
-                    ctx.shadowColor = '#0000FF';
+                    ctx.fillStyle = '#8B4513';
                 }
-                ctx.globalAlpha = 0.8;
             } 
+            // 稳定阶段：显示本色
             else {
-                // 点灯
-                if (this.type === 'light' && timeline > 16000) {
-                    const lightTime = 16000 + (1 - this.h) * 2000;
-                    if (timeline > lightTime) {
-                        ctx.fillStyle = this.color;
-                        ctx.shadowBlur = 15 * this.scale;
-                        ctx.shadowColor = this.color;
-                        const blink = 0.5 + 0.5 * Math.sin(timeline * 0.005 + this.wobble);
-                        ctx.globalAlpha = 0.8 * blink;
-                    } else {
-                        ctx.fillStyle = '#222';
-                        ctx.globalAlpha = 0.3;
-                        ctx.shadowBlur = 0;
-                    }
-                } else {
+                // 彩灯闪烁
+                if (this.type === 'light' && timeline > 10000) {
+                    const blink = 0.5 + 0.5 * Math.sin(timeline * 0.005 + this.wobble);
+                    ctx.globalAlpha = blink;
+                    ctx.shadowBlur = 10 * this.scale; // 适度光晕
+                    ctx.shadowColor = this.color;
                     ctx.fillStyle = this.color;
+                } else {
                     ctx.globalAlpha = 1;
                     ctx.shadowBlur = 0;
+                    ctx.fillStyle = this.color;
                 }
             }
             ctx.fill();
             ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
         }
+    }
+
+    // 魔法地面
+    function drawGround(timeline) {
+        if (timeline < 1000) return;
+        const alpha = Math.min(1, (timeline - 1000) / 4000);
+        
+        ctx.save();
+        ctx.translate(width/2, height/2 + 200); // 放在树底下方
+        ctx.scale(1, 0.25); // 压扁
+        
+        ctx.rotate(timeline * 0.0005);
+        
+        // 简单的魔法圈
+        ctx.beginPath();
+        ctx.arc(0, 0, 350, 0, Math.PI*2);
+        ctx.strokeStyle = `rgba(0, 255, 255, ${0.4 * alpha})`;
+        ctx.lineWidth = 5;
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, 280, 0, Math.PI*2);
+        ctx.strokeStyle = `rgba(255, 0, 255, ${0.3 * alpha})`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.restore();
     }
 
     // 烟花
@@ -347,9 +307,9 @@
             this.x = Math.random() * width;
             this.y = height;
             this.targetY = height * 0.15 + Math.random() * height * 0.35;
-            this.vy = -10 - Math.random() * 6;
-            this.color = `hsl(${Math.random()*360}, 100%, 65%)`;
-            this.state = 'rising'; 
+            this.vy = -10 - Math.random() * 5;
+            this.color = `hsl(${Math.random()*360}, 100%, 70%)`;
+            this.state = 'rising';
             this.particles = [];
         }
         update() {
@@ -357,12 +317,12 @@
                 this.y += this.vy;
                 this.vy += 0.2;
                 if (this.vy >= 0 || this.y < this.targetY) this.explode();
-            } else if (this.state === 'exploding') {
+            } else {
                 this.particles.forEach(p => {
                     p.x += p.vx;
                     p.y += p.vy;
                     p.vy += 0.08;
-                    p.alpha -= 0.015;
+                    p.alpha -= 0.02;
                 });
                 this.particles = this.particles.filter(p => p.alpha > 0);
                 if (this.particles.length === 0) this.state = 'dead';
@@ -370,7 +330,7 @@
         }
         explode() {
             this.state = 'exploding';
-            for (let i = 0; i < 60; i++) {
+            for(let i=0; i<60; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const speed = Math.random() * 4 + 1;
                 this.particles.push({
@@ -382,80 +342,38 @@
             }
         }
         draw(ctx) {
-            ctx.globalCompositeOperation = 'lighter';
-            if (this.state === 'rising') {
+            this.particles.forEach(p => {
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, 2, 0, Math.PI*2);
-                ctx.fillStyle = '#fff';
+                ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = p.alpha;
                 ctx.fill();
-            } else {
-                this.particles.forEach(p => {
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
-                    ctx.fillStyle = this.color;
-                    ctx.globalAlpha = p.alpha;
-                    ctx.fill();
-                });
-            }
-            ctx.globalCompositeOperation = 'source-over';
+            });
             ctx.globalAlpha = 1;
         }
     }
 
-    // 背景星
-    class Star {
-        constructor() { this.reset(); }
-        reset() {
-            this.x = Math.random() * width;
-            this.y = Math.random() * height;
-            this.size = Math.random() * 2;
-            this.speed = Math.random() * 0.5 + 0.2;
-            this.isShooting = Math.random() < 0.02; 
-            if (this.isShooting) {
-                this.x = Math.random() * width + 200;
-                this.y = -100;
-                this.speed = 10 + Math.random() * 10;
-            }
-        }
-        update() {
-            if (this.isShooting) {
-                this.x -= this.speed;
-                this.y += this.speed;
-                if (this.x < -100 || this.y > height + 100) this.reset();
-            } else {
-                this.y -= this.speed;
-                if (this.y < 0) this.y = height;
-            }
-        }
-        draw(ctx) {
-            ctx.fillStyle = this.isShooting ? '#fff' : 'rgba(255,255,255,0.4)';
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-            ctx.fill();
-        }
-    }
-
-    // 树顶大星
+    // 树顶星 (位置修正)
     function drawTopStar(timeline) {
-        if (timeline < 17000) return;
-        const alpha = Math.min(1, (timeline - 17000) / 2000);
+        if (timeline < 10000) return;
+        const alpha = Math.min(1, (timeline - 10000) / 1000);
         
-        // 树顶坐标 ty = -480
+        // 树顶坐标：ty = baseHeight - treeHeight = 300 - 850 = -550
         const camY = 0; 
-        const camZ = -900;
+        const camZ = -1100;
         const perspective = 600;
         const scale = perspective / (perspective + 0 - camZ); 
         const px = width/2;
-        const py = height/2 + (-480 - camY) * scale;
+        const py = height/2 + (-550 - camY) * scale;
 
         ctx.save();
         ctx.translate(px, py);
-        ctx.rotate(timeline * 0.001);
+        ctx.rotate(timeline * 0.002);
         ctx.globalAlpha = alpha;
         
         ctx.beginPath();
         ctx.fillStyle = "#FFD700";
-        ctx.shadowBlur = 50;
+        ctx.shadowBlur = 30;
         ctx.shadowColor = "#FFD700";
         for (let i = 0; i < 5; i++) {
             ctx.lineTo(Math.cos((18 + i * 72) * 0.01745) * 40 * scale,
@@ -465,8 +383,8 @@
         }
         ctx.fill();
         ctx.restore();
-        ctx.globalAlpha = 1;
         ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
     }
 
     function showSubtitle(text, duration) {
@@ -482,46 +400,45 @@
         const current = Date.now();
         const timeline = current - startTime;
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // 拖尾
         ctx.fillRect(0, 0, width, height);
 
-        stars.forEach(s => { s.update(); s.draw(ctx); });
+        drawGround(timeline);
 
-        if (timeline < 20000 && timeline % 3 === 0) {
+        if (timeline < 15000 && timeline % 2 === 0) {
             particles.sort((a, b) => b.scale - a.scale); 
         }
         particles.forEach(p => { p.update(timeline); p.draw(ctx, timeline); });
 
         drawTopStar(timeline);
 
-        if (timeline > 19000) {
-            if (Math.random() < 0.04) fireworks.push(new Firework());
+        if (timeline > 12000) {
+            if (Math.random() < 0.03) fireworks.push(new Firework());
             fireworks.forEach((f, i) => {
                 f.update();
                 f.draw(ctx);
                 if (f.state === 'dead') fireworks.splice(i, 1);
             });
-            if (timeline > 20000) document.getElementById('final-msg').style.opacity = 1;
+            if (timeline > 13000) document.getElementById('final-msg').style.opacity = 1;
         }
 
-        if (timeline > 1000 && timeline < 1100) showSubtitle("星河沉睡...", 3000);
-        if (timeline > 5500 && timeline < 5600) showSubtitle("星光为你汇聚...", 3000);
-        if (timeline > 14000 && timeline < 14100) showSubtitle("凝结成永恒...", 3000);
-        if (timeline > 17000 && timeline < 17100) showSubtitle("圣诞快乐...", 3000);
+        if (timeline > 500 && timeline < 600) showSubtitle("准备好了吗...", 2000);
+        if (timeline > 4000 && timeline < 4100) showSubtitle("3", 1000);
+        if (timeline > 5500 && timeline < 5600) showSubtitle("2", 1000);
+        if (timeline > 7000 && timeline < 7100) showSubtitle("1", 1000);
+        if (timeline > 8500 && timeline < 8600) showSubtitle("圣诞快乐！", 2000);
     }
 
     function init() {
         particles = [];
-        stars = [];
+        fireworks = [];
         for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
-        for (let i = 0; i < 150; i++) stars.push(new Star());
     }
 
-    window.startCinematic = function() {
+    window.startShow = function() {
         document.getElementById('start-screen').style.opacity = 0;
-        setTimeout(() => document.getElementById('start-screen').style.display = 'none', 1500);
+        setTimeout(() => document.getElementById('start-screen').style.display = 'none', 1000);
         document.getElementById('bgm').play().catch(()=>{});
-        
         init();
         startTime = Date.now();
         isPlaying = true;
