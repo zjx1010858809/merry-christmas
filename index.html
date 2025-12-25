@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Merry Christmas</title>
     <style>
-        /* CSS 渐变背景，兜底 */
+        /* 沉浸背景 */
         body, html { margin: 0; padding: 0; overflow: hidden; background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%); height: 100%; font-family: "Microsoft YaHei", sans-serif; touch-action: none; }
         canvas { display: block; width: 100%; height: 100%; cursor: grab; }
         canvas:active { cursor: grabbing; }
@@ -18,7 +18,7 @@
 
         #start-screen {
             pointer-events: auto;
-            background: rgba(0,0,0,0.85); /* 稍微透一点，能看到背景星空 */
+            background: rgba(0,0,0,0.85);
             width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             transition: opacity 1.5s;
@@ -28,13 +28,13 @@
 
         .btn-play {
             padding: 18px 65px; font-size: 1.3rem; color: #fff;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: 1px solid rgba(255,255,255,0.3); border-radius: 50px; cursor: pointer;
-            box-shadow: 0 0 30px rgba(118, 75, 162, 0.6);
+            background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 50px; cursor: pointer;
+            box-shadow: 0 0 30px rgba(0, 114, 255, 0.6);
             font-weight: bold; letter-spacing: 4px;
             animation: pulse 2s infinite;
         }
-        @keyframes pulse { 50% { transform: scale(1.05); box-shadow: 0 0 50px rgba(118, 75, 162, 0.9); } }
+        @keyframes pulse { 50% { transform: scale(1.05); box-shadow: 0 0 50px rgba(0, 114, 255, 0.9); } }
 
         .hint { color: #ccc; margin-top: 25px; font-size: 13px; letter-spacing: 1px; text-shadow: 0 0 5px #000; }
 
@@ -50,8 +50,8 @@
 
 <div id="ui-layer">
     <div id="start-screen">
-        <button id="playBtn" class="btn-play">🌌 开启星夜</button>
-        <div class="hint">星河背景 | 瑞雪降临 | 极致浪漫</div>
+        <button id="playBtn" class="btn-play">🌌 开启奇迹</button>
+        <div class="hint">完美衔接 | 瑞雪降临 | 交互3D</div>
     </div>
     <div id="subtitle"></div>
 </div>
@@ -69,9 +69,9 @@
     const playBtn = document.getElementById('playBtn');
     
     let width, height;
-    let renderList = []; // 主物体
-    let skyStars = [];   // 背景星空
-    let snowList = [];   // 飘雪
+    let renderList = []; 
+    let skyStars = [];   
+    let snowList = [];   
     let fireworks = [];
     let isPlaying = false;
     let startTime = 0;
@@ -119,16 +119,13 @@
     playBtn.addEventListener('touchend', startShow);
 
     // ==========================================
-    //           背景星空 (Sky Stars)
+    //           背景组件
     // ==========================================
     class SkyStar {
         constructor() {
-            this.x = Math.random() * width;
-            this.y = Math.random() * height * 0.7; // 只在上面
-            this.size = Math.random() * 1.5;
-            this.alpha = Math.random();
-            this.speed = Math.random() * 0.02 + 0.005;
-            this.direction = Math.random() > 0.5 ? 1 : -1;
+            this.x = Math.random() * width; this.y = Math.random() * height * 0.7;
+            this.size = Math.random() * 1.5; this.alpha = Math.random();
+            this.speed = Math.random() * 0.02 + 0.005; this.direction = Math.random() > 0.5 ? 1 : -1;
         }
         update() {
             this.alpha += this.speed * this.direction;
@@ -137,52 +134,32 @@
         }
         draw(ctx) {
             ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
         }
     }
 
-    // ==========================================
-    //           3D 飘雪 (Snow)
-    // ==========================================
     class Snow {
-        constructor() {
-            this.reset();
-        }
+        constructor() { this.reset(); }
         reset() {
-            this.x = (Math.random() - 0.5) * width * 2;
-            this.y = -height;
-            this.z = (Math.random() - 0.5) * 2000;
-            this.size = Math.random() * 2 + 1;
-            this.speed = Math.random() * 1 + 0.5;
-            this.drift = Math.random() * 0.02;
-            this.driftOffset = Math.random() * Math.PI * 2;
+            this.x = (Math.random() - 0.5) * width * 2; this.y = -height; this.z = (Math.random() - 0.5) * 2000;
+            this.size = Math.random() * 2 + 1; this.speed = Math.random() * 1 + 0.5;
         }
         update() {
-            this.y += this.speed;
-            if (this.y > height * 1.5) this.reset();
+            this.y += this.speed; if (this.y > height * 1.5) this.reset();
         }
         draw(ctx, fov, cos, sin) {
-            // 简单的3D投影，随树一起微旋
-            let rx = this.x * cos - this.z * sin;
-            let rz = this.z * cos + this.x * sin;
+            let rx = this.x * cos - this.z * sin; let rz = this.z * cos + this.x * sin;
             let scale = fov / (fov + rz - CAMERA_Z);
-            
             if (scale > 0) {
-                let px = width/2 + rx * scale;
-                let py = height/2 + this.y * scale;
-                
+                let px = width/2 + rx * scale; let py = height/2 + this.y * scale;
                 ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, scale*0.8)})`;
-                ctx.beginPath();
-                ctx.arc(px, py, this.size * scale, 0, Math.PI*2);
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(px, py, this.size * scale, 0, Math.PI*2); ctx.fill();
             }
         }
     }
 
     // ==========================================
-    //           核心 3D 粒子 (主物体)
+    //           核心 3D 粒子 (连续算法)
     // ==========================================
     class Point3D {
         constructor(type) {
@@ -193,6 +170,7 @@
         reset() {
             this.h = Math.random();
             
+            // --- 最终：圣诞树 (Tree) ---
             const treeHeight = 900; 
             const bottomY = 450;
             
@@ -201,99 +179,115 @@
                 const maxR = 300 * Math.pow(1 - this.h, 0.6);
                 const r = maxR * Math.sqrt(Math.random());
                 const angle = Math.random() * Math.PI * 2;
-                
-                this.tx = Math.cos(angle) * r;
-                this.tz = Math.sin(angle) * r;
+                this.tx = Math.cos(angle) * r; this.tz = Math.sin(angle) * r;
                 
                 const rand = Math.random();
-                if (rand < 0.15) { 
-                    this.style = 'light'; 
-                    this.color = Math.random()>0.5 ? '#FFD700' : `hsl(${Math.random()*360},100%,70%)`; 
-                    this.size = 3.5;
-                } else { 
-                    this.style = 'leaf'; 
-                    // 颗粒感颜色：深浅不一
-                    const l = 20 + Math.random() * 30;
-                    this.color = `hsl(${115+Math.random()*20}, 75%, ${l}%)`; 
-                    this.size = 2.0; 
-                }
+                if (rand < 0.15) { this.style = 'light'; this.color = Math.random()>0.5 ? '#FFD700' : `hsl(${Math.random()*360},100%,70%)`; this.size = 3.5; }
+                else { this.style = 'leaf'; const l = 20 + Math.random() * 30; this.color = `hsl(${115+Math.random()*20}, 75%, ${l}%)`; this.size = 2.0; }
             } else if (this.type === 'ribbon') {
                 this.ty = bottomY - this.h * treeHeight;
-                const maxR = 330 * (1 - this.h) + 20;
-                const angle = this.h * 20;
-                this.tx = Math.cos(angle) * maxR;
-                this.tz = Math.sin(angle) * maxR;
+                const maxR = 330 * (1 - this.h) + 20; const angle = this.h * 20;
+                this.tx = Math.cos(angle) * maxR; this.tz = Math.sin(angle) * maxR;
                 this.style = 'gold'; this.color = '#FFD700'; this.size = 2.5;
             }
 
-            // 初始：地面光盘
-            const groundR = 900 * Math.sqrt(Math.random());
-            const groundAngle = Math.random() * Math.PI * 2;
-            this.sx = Math.cos(groundAngle) * groundR;
+            // --- 初始：地面光盘 (Ground Disk) ---
+            // 关键：保存初始极坐标，用于无缝过渡
+            this.groundR = 900 * Math.sqrt(Math.random());
+            this.groundAngle = Math.random() * Math.PI * 2;
+            
+            this.sx = Math.cos(this.groundAngle) * this.groundR;
             this.sy = 900; 
-            this.sz = Math.sin(groundAngle) * groundR;
+            this.sz = Math.sin(this.groundAngle) * this.groundR;
 
-            // 中间态：金色能量球 (Y=-500)
+            // --- 中间态：金色能量球 ---
             const sphereR = 250; 
-            // 增加噪音，让球看起来毛茸茸
             const noise = (Math.random()-0.5)*60;
             const u = Math.random(); const v = Math.random();
-            const theta = 2 * Math.PI * u;
-            const phi = Math.acos(2 * v - 1);
+            const theta = 2 * Math.PI * u; const phi = Math.acos(2 * v - 1);
             
             this.spX = (sphereR+noise) * Math.sin(phi) * Math.cos(theta);
             this.spY = -500 + (sphereR+noise) * Math.sin(phi) * Math.sin(theta); 
             this.spZ = (sphereR+noise) * Math.cos(phi);
 
+            // 初始赋值
             this.x = this.sx; this.y = this.sy; this.z = this.sz;
             this.driftOffset = Math.random() * 100;
         }
 
         update(timeline) {
-            // Phase 1: 沉睡 (0-2s)
+            // ================= 剧本 =================
+            
+            // Phase 1: 地面静止 & 微动 (0-2s)
             if (timeline < 2000) {
-                this.x = this.sx; this.y = this.sy; this.z = this.sz;
+                // 微微旋转，保持满地粒子的感觉
+                const rot = timeline * 0.0005;
+                this.x = Math.cos(this.groundAngle + rot) * this.groundR;
+                this.z = Math.sin(this.groundAngle + rot) * this.groundR;
+                this.y = this.sy;
                 this.curColor = `rgba(0, 255, 255, 0.4)`;
             }
-            // Phase 2: 螺旋升空 (2s-8s)
+            // Phase 2: 连贯升空 (2s-8s)
             else if (timeline < 8000) {
                 const animTime = timeline - 2000;
                 const totalTime = 6000;
-                const distRatio = Math.sqrt(this.sx*this.sx + this.sz*this.sz) / 900;
-                let p = (animTime - distRatio * 1000) / (totalTime - 1000);
-                if (p < 0) p = 0; if (p > 1) p = 1;
                 
-                const ease = p * p;
-                const spiralR = 1000 * (1 - ease) + 100;
-                const spin = (1 - ease) * 12;
-                const angle = Math.atan2(this.sz, this.sx) + spin;
+                // 距离中心越近，起飞越早 (波浪式)
+                // distRatio: 0(中心) -> 1(边缘)
+                const distRatio = this.groundR / 900;
+                
+                // 起飞延迟：中心0s，边缘2s
+                const delay = distRatio * 2000; 
+                
+                // 计算当前粒子的进度 p
+                let p = (animTime - delay) / (totalTime - 2000); 
+                if (p < 0) p = 0; 
+                if (p > 1) p = 1;
+                
+                // 缓动
+                const ease = p * p; // 加速起飞
 
-                this.x = Math.cos(angle) * spiralR + (this.spX) * ease;
-                this.z = Math.sin(angle) * spiralR + (this.spZ) * ease;
+                // --- 核心算法：无缝插值 ---
+                // 起点：当前的地面旋转位置 (sx, sz)
+                // 终点：球体位置 (spX, spZ)
+                // 过程：螺旋上升
+                
+                // 1. 动态半径：从 地面半径 -> 球体半径(近似0)
+                const currentR = this.groundR * (1 - ease); 
+                
+                // 2. 动态高度：地面 -> 球体高度
                 this.y = this.sy + (this.spY - this.sy) * ease;
-                this.curColor = `rgba(255, 220, 100, ${0.6 + ease * 0.4})`;
+                
+                // 3. 动态角度：保持自旋 + 加速螺旋
+                const spin = ease * 15; // 旋转15圈
+                const angle = this.groundAngle + spin; // 接着地面的角度转
+                
+                // 4. 混合坐标
+                // 螺旋部分 + 最终球体位置偏移
+                this.x = Math.cos(angle) * currentR + (this.spX * ease);
+                this.z = Math.sin(angle) * currentR + (this.spZ * ease);
+                
+                this.curColor = `rgba(100, 200, 255, ${0.5 + ease * 0.5})`;
             }
             // Phase 3: 金球旋转 (8s-12s)
             else if (timeline < 12000) {
                 const rot = (timeline - 8000) * 0.0015;
                 const cos = Math.cos(rot); const sin = Math.sin(rot);
+                // 绕球心自转
                 this.x = this.spX * cos - this.spZ * sin;
                 this.z = this.spZ * cos + this.spX * sin;
                 this.y = this.spY;
                 this.curColor = `rgba(255, 215, 0, 1)`;
             }
-            // Phase 4: 瑞雪飘落 (12s-22s) 极慢
+            // Phase 4: 瑞雪飘落 (12s-22s)
             else if (timeline < 22000) {
-                const p = (timeline - 12000) / 10000; // 10秒飘落
-                // 缓动
+                const p = (timeline - 12000) / 10000; 
                 const ease = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
                 
-                // 飘动计算
+                // 飘动
                 const drift = Math.sin(timeline * 0.002 + this.driftOffset) * 40 * (1-ease);
                 
-                // 位置插值：从球(旋转后) 到 树
-                // 这里简化处理：直接从当前球体位置飘下去
-                
+                // 从 球体 -> 树
                 this.x = this.spX + (this.tx - this.spX) * ease + drift;
                 this.z = this.spZ + (this.tz - this.spZ) * ease + drift;
                 this.y = this.spY + (this.ty - this.spY) * ease;
@@ -326,14 +320,10 @@
         renderList = [];
         skyStars = [];
         snowList = [];
-        // 背景星空
         for(let i=0; i<300; i++) skyStars.push(new SkyStar());
-        // 飘雪
         for(let i=0; i<150; i++) snowList.push(new Snow());
-        // 树粒子
         for (let i = 0; i < 2400; i++) renderList.push(new Point3D('tree'));
         for (let i = 0; i < 200; i++) renderList.push(new Point3D('ribbon'));
-        // 文字
         for (let i = 0; i < WISH_WORDS.length; i++) {
             const angle = (i / WISH_WORDS.length) * Math.PI * 2 + Math.PI; 
             renderList.push(new Text3D(WISH_WORDS[i], angle));
@@ -360,26 +350,20 @@
             else { angleY += autoRotateSpeed; }
         }
 
-        // 绘制深空背景 (Gradient)
         const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, height);
-        gradient.addColorStop(0, '#1b2735');
-        gradient.addColorStop(1, '#090a0f');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, height);
+        gradient.addColorStop(0, '#1b2735'); gradient.addColorStop(1, '#090a0f');
+        ctx.fillStyle = gradient; ctx.fillRect(0, 0, width, height);
 
-        // 1. 绘制背景星星
         skyStars.forEach(s => { s.update(); s.draw(ctx); });
 
         const fov = 800;
         const cos = Math.cos(angleY);
         const sin = Math.sin(angleY);
 
-        // 2. 绘制飘雪 (随3D旋转)
         snowList.forEach(s => { s.update(); s.draw(ctx, fov, cos, sin); });
 
         if (timeline > 2000) drawGround(timeline);
         
-        // 3. 更新主粒子
         renderList.forEach(obj => {
             obj.update(timeline);
             const rx = obj.x * cos - obj.z * sin;
@@ -393,21 +377,17 @@
 
         renderList.sort((a, b) => b.depth - a.depth);
 
-        // 4. 绘制主粒子
         renderList.forEach(obj => {
             if (obj.scale <= 0) return;
 
             if (obj.type === 'text') {
-                if (timeline > 22000) { // 树完全长好后
+                if (timeline > 22000) { 
                     const alpha = Math.min(1, (timeline - 22000) / 2000);
-                    ctx.save();
-                    ctx.globalAlpha = alpha;
+                    ctx.save(); ctx.globalAlpha = alpha;
                     ctx.font = `bold ${Math.max(10, obj.fontSize * obj.scale)}px sans-serif`;
                     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillStyle = obj.color;
-                    ctx.shadowBlur = 10 * obj.scale; ctx.shadowColor = obj.color;
-                    ctx.fillText(obj.text, obj.px, obj.py);
-                    ctx.restore();
+                    ctx.fillStyle = obj.color; ctx.shadowBlur = 10 * obj.scale; ctx.shadowColor = obj.color;
+                    ctx.fillText(obj.text, obj.px, obj.py); ctx.restore();
                 }
             } else {
                 ctx.beginPath();
@@ -415,10 +395,9 @@
                 ctx.arc(obj.px, obj.py, size, 0, Math.PI * 2);
                 ctx.fillStyle = obj.curColor;
                 
-                // 特效
                 if (timeline < 8000) { 
                      ctx.shadowBlur = 4 * obj.scale; ctx.shadowColor = '#00ffff';
-                } else if (timeline < 12000) { // 金球强光
+                } else if (timeline < 12000) { 
                      ctx.shadowBlur = 8 * obj.scale; ctx.shadowColor = '#FFD700';
                 } else if (obj.style === 'light' || obj.style === 'gold') {
                     ctx.shadowBlur = 10 * obj.scale; ctx.shadowColor = obj.curColor;
@@ -434,15 +413,14 @@
         if (timeline > 22500) {
             if (Math.random() < 0.04) fireworks.push(new Firework());
             for (let i = fireworks.length - 1; i >= 0; i--) {
-                let f = fireworks[i]; f.update(); f.draw();
-                if (f.dead) fireworks.splice(i, 1);
+                let f = fireworks[i]; f.update(); f.draw(); if (f.dead) fireworks.splice(i, 1);
             }
         }
         
-        // 剧本字幕 (调整时间)
-        if (timeline > 500 && timeline < 600) showSubtitle("星夜沉睡...", 1500);
-        if (timeline > 2500 && timeline < 2600) showSubtitle("地脉苏醒...", 2000);
-        if (timeline > 8000 && timeline < 8100) showSubtitle("星云汇聚...", 2000);
+        // 字幕
+        if (timeline > 500 && timeline < 600) showSubtitle("星光苏醒...", 1500);
+        if (timeline > 2500 && timeline < 2600) showSubtitle("汇聚...", 2000);
+        if (timeline > 8000 && timeline < 8100) showSubtitle("凝结成愿...", 2000);
         if (timeline > 12000 && timeline < 12100) showSubtitle("瑞雪降临...", 2000);
         if (timeline > 22000 && timeline < 22100) showSubtitle("圣诞快乐！", 2000);
     }
@@ -452,7 +430,6 @@
         const alpha = Math.min(1, (timeline - 2000) / 4000);
         const fov = 800; const radius = 500;
         ctx.save(); ctx.translate(width/2, height/2);
-        
         ctx.beginPath();
         for(let i=0; i<=60; i++) {
             const angle = (i/60)*Math.PI*2;
@@ -472,6 +449,7 @@
         const ty = -680; const rz = 0 * cos + 0 * sin; 
         const fov = 800; const scale = fov / (fov + (rz - CAMERA_Z));
         const px = width/2; const py = height/2 + (ty - 50) * scale;
+        
         ctx.save(); ctx.translate(px, py); ctx.rotate(timeline * 0.002);
         ctx.beginPath(); ctx.fillStyle = "#FFD700"; 
         ctx.shadowBlur = 40; ctx.shadowColor = "#FFD700";
