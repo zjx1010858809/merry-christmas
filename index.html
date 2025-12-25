@@ -50,15 +50,17 @@
 
 <div id="ui-layer">
     <div id="start-screen">
-        <button id="playBtn" class="btn-play">🌌 开启奇迹</button>
-        <div class="hint">完美衔接 | 瑞雪降临 | 交互3D</div>
+        <button id="playBtn" class="btn-play">🎁 圣诞快乐</button>
+        <div class="hint">完美无缝 | 瑞雪降临 | 经典乐章</div>
     </div>
     <div id="subtitle"></div>
 </div>
 
 <canvas id="canvas"></canvas>
+
+<!-- 已更换为经典的 We Wish You A Merry Christmas -->
 <audio id="bgm" loop>
-    <source src="https://music.163.com/song/media/outer/url?id=1901371647.mp3" type="audio/mpeg">
+    <source src="https://music.163.com/song/media/outer/url?id=26217171.mp3" type="audio/mpeg">
 </audio>
 
 <script>
@@ -413,7 +415,8 @@
         if (timeline > 22500) {
             if (Math.random() < 0.04) fireworks.push(new Firework());
             for (let i = fireworks.length - 1; i >= 0; i--) {
-                let f = fireworks[i]; f.update(); f.draw(); if (f.dead) fireworks.splice(i, 1);
+                let f = fireworks[i]; f.update(); f.draw();
+                if (f.dead) fireworks.splice(i, 1);
             }
         }
         
@@ -430,6 +433,7 @@
         const alpha = Math.min(1, (timeline - 2000) / 4000);
         const fov = 800; const radius = 500;
         ctx.save(); ctx.translate(width/2, height/2);
+        
         ctx.beginPath();
         for(let i=0; i<=60; i++) {
             const angle = (i/60)*Math.PI*2;
@@ -449,7 +453,6 @@
         const ty = -680; const rz = 0 * cos + 0 * sin; 
         const fov = 800; const scale = fov / (fov + (rz - CAMERA_Z));
         const px = width/2; const py = height/2 + (ty - 50) * scale;
-        
         ctx.save(); ctx.translate(px, py); ctx.rotate(timeline * 0.002);
         ctx.beginPath(); ctx.fillStyle = "#FFD700"; 
         ctx.shadowBlur = 40; ctx.shadowColor = "#FFD700";
