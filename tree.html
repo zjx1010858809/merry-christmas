@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Merry Christmas My Love</title>
+    <style>
+        /* --- 基础样式 --- */
+        body, html { margin: 0; padding: 0; overflow: hidden; background-color: #000; height: 100%; font-family: "Microsoft YaHei", sans-serif; }
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* --- UI 层容器 --- */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 100; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+
+        /* --- 1. 开场加载页 --- */
+        #start-screen {
+            pointer-events: auto;
+            background: radial-gradient(circle, #1a1a2e 0%, #000000 100%);
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 1.5s ease-in-out;
+            position: absolute; top: 0; left: 0; z-index: 200;
+        }
+
+        /* 霓虹按钮 */
+        .btn-play {
+            padding: 18px 50px;
+            font-size: 1.3rem;
+            color: #00ffff;
+            background: rgba(0, 255, 255, 0.05);
+            border: 2px solid #00ffff;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            font-weight: bold;
+            transition: all 0.3s;
+            opacity: 0.5; pointer-events: none; /* 初始不可点 */
+        }
+        .btn-play.active {
+            opacity: 1; pointer-events: auto;
+            animation: pulseBtn 2s infinite;
+        }
+        @keyframes pulseBtn { 0% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.4); } 50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.8); } 100% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.4); } }
+
+        /* 加载条 */
+        .loader-container {
+            width: 200px; height: 4px; background: #333; margin-top: 30px; border-radius: 2px; overflow: hidden;
+        }
+        .loader-bar {
+            width: 0%; height: 100%; background: #00ffff; box-shadow: 0 0 10px #00ffff; transition: width 0.1s;
+        }
+        .loading-text { color: #666; font-size: 12px; margin-top: 10px; letter-spacing: 1px; }
+
+        /* --- 2. 电影字幕 --- */
+        #subtitle {
+            position: absolute; bottom: 15%; width: 100%; text-align: center;
+            color: #fff; font-size: 1.2rem; letter-spacing: 3px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.8);
+            opacity: 0; transition: opacity 1.5s; font-weight: 300;
+        }
+
+        /* --- 3. 最终祝福语 --- */
+        #final-msg {
+            position: absolute; top: 15%; width: 100%; text-align: center;
+            opacity: 0; transition: opacity 3s; pointer-events: none;
+        }
+        .msg-title {
+            font-size: 3rem; color: #FFD700; font-weight: bold; margin-bottom: 20px;
+            text-shadow: 0 0 30px #FFD700, 0 0 10px #ff0000;
+            font-family: 'Times New Roman', serif;
+        }
+        .msg-body {
+            font-size: 1.3rem; color: #eee; line-height: 2; font-weight: bold;
+            text-shadow: 0 2px 5px #000;
+        }
+    </style>
+</head>
+<body>
+
+<!-- UI 层 -->
+<div id="ui-layer">
+    <!-- 开场加载 -->
+    <div id="start-screen">
+        <button class="btn-play" id="start-btn" onclick="startCinematic()">System Loading...</button>
+        <div class="loader-container"><div class="loader-bar" id="load-bar"></div></div>
+        <div class="loading-text" id="load-text">Initializing Christmas Protocol...</div>
+    </div>
+
+    <!-- 字幕 -->
+    <div id="subtitle"></div>
+
+    <!-- 最终祝福 -->
+    <div id="final-msg">
+        <div class="msg-title">Merry Christmas</div>
+        <div class="msg-body">
+            亲爱的老婆<br>
+            愿你的世界永远星河璀璨<br>
+            我爱你 ❤️
+        </div>
+    </div>
+</div>
+
+<!-- 画布 -->
+<canvas id="canvas"></canvas>
+
+<!-- 背景音乐 -->
+<audio id="bgm" loop>
+    <source src="https://music.163.com/song/media/outer/url?id=1413863371.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+    // --- 系统变量 ---
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const subtitle = document.getElementById('subtitle');
+    const startBtn = document.getElementById('start-btn');
+    const loadBar = document.getElementById('load-bar');
+    const loadText = document.getElementById('load-text');
+    
+    let width, height;
+    let particles = [];
+    let fireworks = [];
+    let stars = []; 
+    
+    let startTime = 0;
+    let isPlaying = false;
+    
+    const PARTICLE_COUNT = 3200; // 粒子总数
+    
+    // --- 响应式调整 ---
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ==========================================
+    //            粒子系统 (核心逻辑)
+    // ==========================================
+    class Particle {
+        constructor() {
+            // 1. 设定树的目标形状 (Target)
+            this.h = Math.random(); // 高度 0-1
+            
+            // 体积填充算法: Math.sqrt(Math.random()) 让粒子均匀填充内部，而不是只在表面
+            const maxR = Math.min(width, height) * 0.38;
+            const r = (1 - this.h) * maxR * Math.sqrt(Math.random()); 
+            const angle = Math.random() * Math.PI * 2 * 12; // 12圈螺旋
+            
+            this.tx = Math.cos(angle) * r; // 目标X
+            this.tz = Math.sin(angle) * r; // 目标Z
+            this.ty = 250 - this.h * 600;  // 目标Y (树高)
+
+            // 2. 设定初始状态 (Initial) -> 地面魔法阵
+            const floorAngle = Math.random() * Math.PI * 2;
+            const floorR = 50 + Math.random() * 450;
+            this.x = Math.cos(floorAngle) * floorR;
+            this.y = 450; // 地面位置
+            this.z = Math.sin(floorAngle) * floorR;
+
+            // 3. 属性
+            this.floatOffset = Math.random() * 100;
+            
+            // 4. 类型与颜色
+            const rand = Math.random();
+            if (rand < 0.1) { 
+                this.type = 'star'; this.color = '#fff'; this.size = 2.5; 
+            } else if (rand < 0.25) { 
+                this.type = 'light'; 
+                this.color = `hsl(${Math.random()*360}, 100%, 65%)`; 
+                this.size = 3; 
+            } else { 
+                this.type = 'leaf'; 
+                // 丰富的绿色层次
+                const hue = 100 + Math.random() * 60; // 100-160 (绿到青)
+                const light = 20 + Math.random() * 40; // 亮度差异
+                this.color = `hsl(${hue}, 60%, ${light}%)`; 
+                this.size = 1.5; 
+            }
+        }
+
+        update(timeline) {
+            // --- 阶段 A: 魔法阵旋转 (0 - 7秒) ---
+            if (timeline < 7000) {
+                const rotSpeed = 0.02;
+                const dist = Math.sqrt(this.x*this.x + this.z*this.z);
+                const angle = Math.atan2(this.z, this.x) + rotSpeed;
+                this.x = Math.cos(angle) * dist;
+                this.z = Math.sin(angle) * dist;
+                // 上下浮动
+                this.y = 450 + Math.sin(Date.now()*0.003 + this.floatOffset) * 15;
+            }
+            
+            // --- 阶段 B: 汇聚升空 (7 - 16秒) ---
+            else if (timeline < 16000) {
+                // 计算延迟：底部(h=0)先飞，顶部(h=1)后飞
+                const myDelay = (1 - this.h) * 4000; 
+                const flyTime = timeline - 7000;
+                
+                if (flyTime > myDelay) {
+                    // 缓动飞向目标
+                    this.x += (this.tx - this.x) * 0.04;
+                    this.y += (this.ty - this.y) * 0.04;
+                    this.z += (this.tz - this.z) * 0.04;
+                }
+            }
+            
+            // --- 阶段 C: 树形稳定 (16秒 +) ---
+            else {
+                // 强力锁定目标
+                this.x += (this.tx - this.x) * 0.1;
+                this.y += (this.ty - this.y) * 0.1;
+                this.z += (this.tz - this.z) * 0.1;
+                
+                // 18秒后开始呼吸律动
+                if (timeline > 18000) {
+                    const breath = Math.sin(Date.now()*0.002 + this.y*0.01) * 0.5;
+                    this.x += breath; 
+                    this.z += breath;
+                }
+            }
+
+            // --- 3D 投影与运镜逻辑 ---
+            let camY = -600; // 初始俯视
+            let camZ = -100; // 初始近距离
+            
+            // 运镜动画
+            if (timeline > 6000 && timeline < 16000) {
+                const p = (timeline - 6000) / 10000; // 0 -> 1
+                camY = -600 + p * 600;  // -600 -> 0 (平视)
+                camZ = -100 + p * (-700); // -100 -> -800 (拉远)
+            } else if (timeline >= 16000) {
+                camY = 0; camZ = -800;
+            }
+
+            // 整体旋转 (树成型后)
+            let finalX = this.x;
+            let finalZ = this.z;
+            if (timeline > 16000) {
+                const rot = (timeline - 16000) * 0.0005;
+                const cos = Math.cos(rot);
+                const sin = Math.sin(rot);
+                finalX = this.x * cos - this.z * sin;
+                finalZ = this.z * cos + this.x * sin;
+            }
+
+            // 投影公式
+            const perspective = 600;
+            const scale = perspective / (perspective + finalZ - camZ);
+            
+            this.px = width/2 + finalX * scale;
+            this.py = height/2 + (this.y - camY) * scale;
+            this.scale = scale;
+        }
+
+        draw(ctx, timeline) {
+            if (this.scale <= 0) return;
+            
+            ctx.beginPath();
+            ctx.arc(this.px, this.py, this.size * this.scale, 0, Math.PI * 2);
+            
+            // --- 点灯动画 (18秒开始) ---
+            if (this.type !== 'leaf' && timeline > 18000) {
+                // 从下往上亮
+                const lightTime = 18000 + (1 - this.h) * 3000;
+                
+                if (timeline > lightTime) {
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = 15 * this.scale;
+                    ctx.shadowColor = this.color;
+                    // 闪烁
+                    const blink = 0.5 + 0.5 * Math.sin(Date.now()*0.005 + this.floatOffset);
+                    ctx.globalAlpha = 0.5 + 0.5 * blink;
+                } else {
+                    ctx.fillStyle = '#112211'; // 未亮时的暗色
+                    ctx.globalAlpha = 0.3;
+                    ctx.shadowBlur = 0;
+                }
+            } else {
+                // 树叶
+                ctx.fillStyle = this.color;
+                // 开场淡入效果
+                ctx.globalAlpha = Math.min(1, timeline / 2000); 
+                ctx.shadowBlur = 0;
+            }
+            
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // ==========================================
+    //              烟花系统
+    // ==========================================
+    class Firework {
+        constructor() {
+            this.x = Math.random() * width;
+            this.y = height;
+            this.targetY = height * 0.15 + Math.random() * height * 0.35;
+            this.vy = -10 - Math.random() * 6; // 上升速度
+            this.color = `hsl(${Math.random()*360}, 100%, 60%)`;
+            this.state = 'rising'; // rising, exploding, dead
+            this.particles = [];
+        }
+
+        update() {
+            if (this.state === 'rising') {
+                this.y += this.vy;
+                this.vy += 0.15; // 重力
+                if (this.vy >= 0 || this.y < this.targetY) {
+                    this.explode();
+                }
+            } else if (this.state === 'exploding') {
+                this.particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.08; // 粒子重力
+                    p.alpha -= 0.015;
+                });
+                this.particles = this.particles.filter(p => p.alpha > 0);
+                if (this.particles.length === 0) this.state = 'dead';
+            }
+        }
+
+        explode() {
+            this.state = 'exploding';
+            for (let i = 0; i < 60; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 4 + 1;
+                this.particles.push({
+                    x: this.x, y: this.y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    alpha: 1
+                });
+            }
+        }
+
+        draw(ctx) {
+            ctx.globalCompositeOperation = 'lighter'; // 发光混合模式
+            if (this.state === 'rising') {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                // 拖尾
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x, this.y + 20);
+                ctx.strokeStyle = this.color;
+                ctx.stroke();
+            } else {
+                this.particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 2.5, 0, Math.PI*2);
+                    ctx.fillStyle = this.color;
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fill();
+                });
+            }
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+        }
+    }
+
+    // ==========================================
+    //              背景流星
+    // ==========================================
+    class Star {
+        constructor() { this.reset(); }
+        reset() {
+            this.x = Math.random() * width;
+            this.y = Math.random() * height;
+            this.size = Math.random() * 2;
+            this.speed = Math.random() * 0.5 + 0.2;
+            this.isShooting = Math.random() < 0.03; // 3%概率流星
+            if (this.isShooting) {
+                this.x = Math.random() * width + 200;
+                this.y = -100;
+                this.speed = 10 + Math.random() * 10;
+            }
+        }
+        update() {
+            if (this.isShooting) {
+                this.x -= this.speed;
+                this.y += this.speed;
+                if (this.x < -100 || this.y > height + 100) this.reset();
+            } else {
+                this.y -= this.speed; // 缓慢上升
+                if (this.y < 0) this.y = height;
+            }
+        }
+        draw(ctx) {
+            ctx.fillStyle = this.isShooting ? '#fff' : 'rgba(255,255,255,0.4)';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+            ctx.fill();
+        }
+    }
+
+    // ==========================================
+    //              辅助函数
+    // ==========================================
+    
+    // 树顶大星绘制
+    function drawTopStar(timeline) {
+        if (timeline < 20000) return; // 20秒后才显示
+        
+        const alpha = Math.min(1, (timeline - 20000) / 2000);
+        const camZ = -800;
+        const perspective = 600;
+        const scale = perspective / (perspective + 0 - camZ); // z=0
+        const px = width/2;
+        const py = height/2 + (-360) * scale; // 树顶坐标
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(Date.now() * 0.001);
+        ctx.globalAlpha = alpha;
+        
+        ctx.beginPath();
+        ctx.fillStyle = "#FFD700";
+        ctx.shadowBlur = 40;
+        ctx.shadowColor = "#FFD700";
+        // 画五角星
+        for (let i = 0; i < 5; i++) {
+            ctx.lineTo(Math.cos((18 + i * 72) * 0.01745) * 30 * scale,
+                       -Math.sin((18 + i * 72) * 0.01745) * 30 * scale);
+            ctx.lineTo(Math.cos((54 + i * 72) * 0.01745) * 12 * scale,
+                       -Math.sin((54 + i * 72) * 0.01745) * 12 * scale);
+        }
+        ctx.fill();
+        ctx.restore();
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+    }
+
+    function showSubtitle(text, duration) {
+        subtitle.innerText = text;
+        subtitle.style.opacity = 1;
+        setTimeout(() => subtitle.style.opacity = 0, duration);
+    }
+
+    // ==========================================
+    //              主循环
+    // ==========================================
+    function loop() {
+        if (!isPlaying) return;
+        requestAnimationFrame(loop);
+
+        const current = Date.now();
+        const timeline = current - startTime;
+
+        // 1. 背景清空 (带拖尾效果)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillRect(0, 0, width, height);
+
+        // 2. 绘制背景星
+        stars.forEach(s => { s.update(); s.draw(ctx); });
+
+        // 3. 绘制粒子 (每隔几帧排序一次优化性能)
+        if (timeline < 22000 && timeline % 5 === 0) {
+            particles.sort((a, b) => b.scale - a.scale); 
+        }
+        particles.forEach(p => { p.update(timeline); p.draw(ctx, timeline); });
+
+        // 4. 绘制树顶星
+        drawTopStar(timeline);
+
+        // 5. 烟花 (21秒后开始)
+        if (timeline > 21000) {
+            if (Math.random() < 0.02) fireworks.push(new Firework());
+            fireworks.forEach((f, i) => {
+                f.update();
+                f.draw(ctx);
+                if (f.state === 'dead') fireworks.splice(i, 1);
+            });
+            // 显示最终文字
+            if (timeline > 22000) {
+                document.getElementById('final-msg').style.opacity = 1;
+            }
+        }
+
+        // --- 字幕剧本 ---
+        if (timeline > 1000 && timeline < 1100) showSubtitle("凛冬散尽...", 4000);
+        if (timeline > 7000 && timeline < 7100) showSubtitle("星河汇聚...", 4000);
+        if (timeline > 13000 && timeline < 13100) showSubtitle("万物为你生长...", 4000);
+        if (timeline > 18000 && timeline < 18100) showSubtitle("此刻，光芒万丈...", 4000);
+    }
+
+    // ==========================================
+    //              初始化与启动
+    // ==========================================
+    function init() {
+        particles = [];
+        stars = [];
+        for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
+        for (let i = 0; i < 150; i++) stars.push(new Star());
+    }
+
+    // 模拟资源加载
+    let progress = 0;
+    const loadTimer = setInterval(() => {
+        progress += Math.random() * 5;
+        if (progress > 100) progress = 100;
+        loadBar.style.width = progress + '%';
+        if (progress === 100) {
+            clearInterval(loadTimer);
+            loadText.innerText = "Ready to Launch";
+            startBtn.innerText = "🎬 点击播放专属影片";
+            startBtn.classList.add('active');
+        }
+    }, 50);
+
+    window.startCinematic = function() {
+        // 隐藏UI
+        document.getElementById('start-screen').style.opacity = 0;
+        setTimeout(() => document.getElementById('start-screen').style.display = 'none', 1500);
+        
+        // 播放音乐
+        document.getElementById('bgm').play().catch(() => console.log('Music require interaction'));
+        
+        // 启动逻辑
+        init();
+        startTime = Date.now();
+        isPlaying = true;
+        loop();
+    }
+</script>
+</body>
+</html>
