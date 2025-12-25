@@ -5,49 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Merry Christmas</title>
     <style>
-        /* 页面基础设定 */
-        body, html { margin: 0; padding: 0; overflow: hidden; background-color: #050505; height: 100%; font-family: "Microsoft YaHei", sans-serif; touch-action: none; }
-        canvas { display: block; width: 100%; height: 100%; cursor: grab; }
-        canvas:active { cursor: grabbing; }
+        /* 基础样式 */
+        body, html { margin: 0; padding: 0; overflow: hidden; background-color: #000; height: 100%; font-family: sans-serif; touch-action: none; }
+        canvas { display: block; width: 100%; height: 100%; }
 
         /* UI 层 */
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 100; pointer-events: none;
+            z-index: 10; pointer-events: none;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
 
-        /* 启动界面 (带毛玻璃) */
+        /* 启动按钮 */
         #start-screen {
-            pointer-events: auto; /* 允许点击 */
-            background: rgba(0,0,0,0.92);
+            pointer-events: auto;
+            background: rgba(0,0,0,0.9);
             width: 100%; height: 100%;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            transition: opacity 0.8s;
-            position: absolute; top: 0; left: 0; z-index: 200;
+            transition: opacity 0.5s;
+            position: absolute; top: 0; left: 0; z-index: 20;
         }
 
-        /* 修复后的按钮样式，增大点击区域 */
         .btn-play {
-            padding: 20px 60px; font-size: 1.5rem; color: #fff;
-            background: linear-gradient(45deg, #00d2ff, #3a7bd5);
+            padding: 15px 50px; font-size: 1.2rem; color: #fff;
+            background: #e60073; /* 纯色背景比渐变性能好一点点，但也好看 */
             border: 2px solid #fff; border-radius: 50px; cursor: pointer;
-            box-shadow: 0 0 40px rgba(0, 210, 255, 0.8);
-            font-weight: bold; letter-spacing: 4px;
+            box-shadow: 0 0 20px rgba(230, 0, 115, 0.8);
+            font-weight: bold; letter-spacing: 2px;
             animation: pulse 1.5s infinite;
-            z-index: 201; /* 保证最上层 */
-            touch-action: manipulation; /* 优化触控响应 */
         }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); box-shadow: 0 0 60px rgba(0, 210, 255, 1); } 100% { transform: scale(1); } }
+        @keyframes pulse { 50% { transform: scale(1.05); } }
 
-        .hint { color: #888; margin-top: 30px; font-size: 14px; animation: blink 3s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        .hint { color: #888; margin-top: 20px; font-size: 14px; }
 
         /* 字幕 */
         #subtitle {
             position: absolute; bottom: 15%; width: 100%; text-align: center;
-            color: #fff; font-size: 1.2rem; letter-spacing: 3px;
-            text-shadow: 0 0 10px #fff; opacity: 0; transition: opacity 0.5s;
+            color: #fff; font-size: 1.2rem;
+            text-shadow: 0 0 5px #000; opacity: 0; transition: opacity 0.5s;
         }
     </style>
 </head>
@@ -56,7 +51,7 @@
 <div id="ui-layer">
     <div id="start-screen">
         <button id="playBtn" class="btn-play">🎁 点亮星河</button>
-        <div class="hint">✨ 建议全屏观看 佩戴耳机 ✨</div>
+        <div class="hint">流畅模式 | 手指滑动旋转</div>
     </div>
     <div id="subtitle"></div>
 </div>
@@ -76,25 +71,27 @@
     let width, height;
     let renderList = [];
     let fireworks = [];
-    
     let isPlaying = false;
     let startTime = 0;
     
-    // --- 摄像机与交互 ---
-    let cameraZ = -900;
+    // --- 性能优化核心：大幅减少粒子数，但增大尺寸 ---
+    const PARTICLE_COUNT = 1500; 
+    
+    // 摄像机
+    let cameraZ = -800;
     let angleY = 0;
     
+    // 交互
     let isDragging = false;
     let lastX = 0;
     let velocity = 0;
-    
-    // 3D 环绕文字配置
+
+    // 3D 文字
     const WISH_WORDS = [
         { text: "老婆", y: -650, color: "#FF3366", size: 50 },
         { text: "圣诞快乐", y: -450, color: "#FFD700", size: 40 },
-        { text: "平安", y: -250, color: "#00FFFF", size: 35 },
-        { text: "喜乐", y: -50, color: "#00FF7F", size: 35 },
-        { text: "永远爱你", y: 150, color: "#FF69B4", size: 40 }
+        { text: "平安喜乐", y: -250, color: "#00FFFF", size: 35 },
+        { text: "永远爱你", y: 0, color: "#FF69B4", size: 40 }
     ];
 
     function resize() {
@@ -104,43 +101,29 @@
     window.addEventListener('resize', resize);
     resize();
 
-    // ==========================================
-    //           交互逻辑 (已修复点击问题)
-    // ==========================================
+    // --- 交互事件 (防误触优化) ---
     function onStart(x) { isDragging = true; lastX = x; velocity = 0; }
     function onMove(x) {
         if (!isDragging) return;
         const delta = x - lastX;
         lastX = x;
-        angleY += delta * 0.005;
-        velocity = delta * 0.005;
+        angleY += delta * 0.008; // 提高一点灵敏度
+        velocity = delta * 0.008;
     }
     function onEnd() { isDragging = false; }
 
-    // 核心修复：只有当点击的不是按钮时，才阻止默认行为（防止页面滚动）
-    document.addEventListener('touchstart', e => { 
-        if(e.target !== playBtn) e.preventDefault(); 
-        onStart(e.touches[0].clientX); 
-    }, {passive: false});
-
-    document.addEventListener('touchmove', e => { 
-        if(e.target !== playBtn) e.preventDefault();
-        onMove(e.touches[0].clientX); 
-    }, {passive: false});
-
+    document.addEventListener('touchstart', e => { if(e.target !== playBtn) e.preventDefault(); onStart(e.touches[0].clientX); }, {passive: false});
+    document.addEventListener('touchmove', e => { if(e.target !== playBtn) e.preventDefault(); onMove(e.touches[0].clientX); }, {passive: false});
     document.addEventListener('touchend', onEnd);
-    
-    // 鼠标兼容
     document.addEventListener('mousedown', e => onStart(e.clientX));
     document.addEventListener('mousemove', e => onMove(e.clientX));
     document.addEventListener('mouseup', onEnd);
-
-    // 绑定按钮点击
+    
     playBtn.addEventListener('click', startShow);
-    playBtn.addEventListener('touchend', startShow); // 备用
+    playBtn.addEventListener('touchend', startShow);
 
     // ==========================================
-    //           3D 对象类
+    //           轻量级 3D 对象
     // ==========================================
     class Point3D {
         constructor(type) {
@@ -150,12 +133,12 @@
         
         reset() {
             this.h = Math.random();
-            const treeH = 1200;
+            const treeH = 1100;
             const bottomY = 500;
             
             if (this.type === 'tree') {
                 this.ty = bottomY - this.h * treeH;
-                const maxR = 400 * Math.pow(1 - this.h, 0.7);
+                const maxR = 380 * Math.pow(1 - this.h, 0.6);
                 const r = maxR * Math.sqrt(Math.random());
                 const angle = Math.random() * Math.PI * 2;
                 
@@ -163,43 +146,45 @@
                 this.tz = Math.sin(angle) * r;
                 
                 const rand = Math.random();
-                if (rand < 0.1) { this.style = 'star'; this.color = '#fff'; this.size = 2.5; }
-                else if (rand < 0.25) { this.style = 'light'; this.color = Math.random()>0.5 ? '#FFD700' : `hsl(${Math.random()*360},100%,60%)`; this.size = 3.5; }
-                else { this.style = 'leaf'; this.color = `hsl(${120+Math.random()*40}, 80%, ${20+this.h*30}%)`; this.size = 2; }
-                
+                if (rand < 0.15) { // 彩灯
+                    this.style = 'light'; 
+                    this.color = Math.random()>0.5 ? '#FFD700' : `hsl(${Math.random()*360},100%,60%)`; 
+                    this.size = 6; // 灯大一点
+                } else { // 树叶
+                    this.style = 'leaf'; 
+                    // 预计算颜色，避免实时计算
+                    const l = 20 + this.h * 30;
+                    this.color = `hsl(120, 70%, ${l}%)`; 
+                    this.size = 3.5; // 叶子也大一点，填补空隙
+                }
             } else if (this.type === 'ribbon') {
                 this.ty = bottomY - this.h * treeH;
-                const maxR = 420 * (1 - this.h) + 30;
-                const angle = this.h * 25;
+                const maxR = 400 * (1 - this.h) + 20;
+                const angle = this.h * 20;
                 this.tx = Math.cos(angle) * maxR;
                 this.tz = Math.sin(angle) * maxR;
-                this.style = 'gold'; this.color = '#FFD700'; this.size = 2.8;
+                this.style = 'gold'; this.color = '#FFD700'; this.size = 3;
             }
 
-            // 初始坐标设为0，update里计算螺旋轨迹
             this.x = 0; this.y = 0; this.z = 0;
-            this.wobble = Math.random() * 100;
         }
 
         update(timeline) {
-            // 螺旋汇聚 (0-8秒)
-            if (timeline < 8000) {
-                const p = timeline / 8000;
+            if (timeline < 6000) {
+                const p = timeline / 6000;
                 const ease = p * p * (3 - 2 * p);
                 
-                const spiralR = 1200 * (1 - ease) + 50;
-                const spin = (1 - ease) * 15;
+                const spiralR = 1000 * (1 - ease) + 50;
+                const spin = (1 - ease) * 10;
                 const angle = spin + this.h * 10;
                 
                 this.x = Math.cos(angle) * spiralR;
                 this.z = Math.sin(angle) * spiralR;
                 this.y = 1000 + (this.ty - 1000) * ease;
-                this.curColor = `rgba(0, 255, 255, 0.8)`;
             } else {
-                this.x += (this.tx - this.x) * 0.1;
-                this.y += (this.ty - this.y) * 0.1;
-                this.z += (this.tz - this.z) * 0.1;
-                this.curColor = this.color;
+                this.x += (this.tx - this.x) * 0.15;
+                this.y += (this.ty - this.y) * 0.15;
+                this.z += (this.tz - this.z) * 0.15;
             }
         }
     }
@@ -211,12 +196,11 @@
             this.color = config.color;
             this.fontSize = config.size;
             this.angleOffset = angleOffset;
-            this.radius = 550;
+            this.radius = 500;
             this.type = 'text';
         }
-
         update(timeline) {
-            this.y = this.baseY + Math.sin(timeline * 0.002 + this.angleOffset) * 20;
+            this.y = this.baseY + Math.sin(timeline * 0.002 + this.angleOffset) * 15;
             this.x = Math.cos(this.angleOffset) * this.radius;
             this.z = Math.sin(this.angleOffset) * this.radius;
         }
@@ -224,11 +208,12 @@
 
     function init() {
         renderList = [];
-        for (let i = 0; i < 3500; i++) renderList.push(new Point3D('tree'));
-        for (let i = 0; i < 400; i++) renderList.push(new Point3D('ribbon'));
-        const count = WISH_WORDS.length;
-        for (let i = 0; i < count; i++) {
-            const angle = (i / count) * Math.PI * 2 + Math.PI; 
+        // 粒子数减半，性能翻倍
+        for (let i = 0; i < 1500; i++) renderList.push(new Point3D('tree'));
+        for (let i = 0; i < 200; i++) renderList.push(new Point3D('ribbon'));
+        
+        for (let i = 0; i < WISH_WORDS.length; i++) {
+            const angle = (i / WISH_WORDS.length) * Math.PI * 2 + Math.PI; 
             renderList.push(new Text3D(WISH_WORDS[i], angle));
         }
     }
@@ -239,30 +224,29 @@
         setTimeout(() => subtitle.style.opacity = 0, duration);
     }
 
+    // ==========================================
+    //           渲染循环 (优化版)
+    // ==========================================
     function loop() {
         if (!isPlaying) return;
         requestAnimationFrame(loop);
         
         const timeline = Date.now() - startTime;
         
+        // 自动旋转
         if (!isDragging) {
-            if (Math.abs(velocity) > 0.0001) {
-                angleY += velocity;
-                velocity *= 0.95;
-            } else {
-                angleY += 0.001;
-            }
+            if (Math.abs(velocity) > 0.0001) { angleY += velocity; velocity *= 0.95; }
+            else { angleY += 0.0015; }
         }
 
-        ctx.fillStyle = '#050505';
+        ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, width, height);
-
-        if (timeline > 2000) drawGround(timeline);
 
         const fov = 800;
         const cos = Math.cos(angleY);
         const sin = Math.sin(angleY);
         
+        // 计算投影
         renderList.forEach(obj => {
             obj.update(timeline);
             const rx = obj.x * cos - obj.z * sin;
@@ -274,154 +258,114 @@
             obj.depth = rz;
         });
 
+        // 排序 (必须保留，为了遮挡关系)
         renderList.sort((a, b) => b.depth - a.depth);
 
-        ctx.globalCompositeOperation = 'lighter';
-        
+        // 绘制 (取消全局 lighter，只对部分对象手动模拟发光)
         renderList.forEach(obj => {
             if (obj.scale <= 0) return;
 
             if (obj.type === 'text') {
-                if (timeline > 8000) {
-                    const alpha = Math.min(1, (timeline - 8000) / 2000);
+                if (timeline > 6000) {
                     ctx.save();
-                    ctx.globalAlpha = alpha;
-                    const fontSize = Math.max(10, obj.fontSize * obj.scale);
-                    ctx.font = `bold ${fontSize}px "Microsoft YaHei"`;
+                    ctx.font = `bold ${Math.max(10, obj.fontSize * obj.scale)}px sans-serif`;
                     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.shadowBlur = 15 * obj.scale; ctx.shadowColor = obj.color;
                     ctx.fillStyle = obj.color;
                     ctx.fillText(obj.text, obj.px, obj.py);
                     ctx.restore();
                 }
             } else {
-                let alpha = 1;
-                if (timeline > 8000 && (obj.style === 'light' || obj.style === 'gold')) {
-                     alpha = 0.5 + 0.5 * Math.sin(timeline * 0.005 + obj.wobble);
-                }
-                
                 ctx.beginPath();
-                const size = obj.size * obj.scale;
-                ctx.arc(obj.px, obj.py, size, 0, Math.PI * 2);
-                ctx.fillStyle = obj.curColor;
-                ctx.globalAlpha = alpha;
+                ctx.arc(obj.px, obj.py, obj.size * obj.scale, 0, Math.PI * 2);
                 
-                if (timeline > 8000 && (obj.style === 'light' || obj.style === 'gold')) {
-                    ctx.shadowBlur = 10 * obj.scale; ctx.shadowColor = obj.curColor;
-                } else if (timeline < 8000) {
-                    ctx.shadowBlur = 5 * obj.scale; ctx.shadowColor = obj.curColor;
+                // 性能优化关键：只有灯光才用 shadowBlur
+                if (obj.style === 'light') {
+                    ctx.shadowBlur = 10 * obj.scale;
+                    ctx.shadowColor = obj.color;
+                    ctx.fillStyle = obj.color;
+                } else if (timeline < 6000) {
+                     // 汇聚时给个蓝色
+                     ctx.fillStyle = '#00ffff';
                 } else {
                     ctx.shadowBlur = 0;
+                    ctx.fillStyle = obj.color;
                 }
                 ctx.fill();
+                ctx.shadowBlur = 0; // 重置
             }
         });
-        
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1;
 
         drawTopStar(timeline, cos, sin);
 
-        if (timeline > 9000) {
-            if (Math.random() < 0.05) fireworks.push(new Firework());
+        // 简化的烟花逻辑 (减少计算)
+        if (timeline > 7000) {
+            if (Math.random() < 0.03) fireworks.push(new Firework());
             fireworks.forEach((f, i) => { f.update(); f.draw(); if(f.dead) fireworks.splice(i,1); });
         }
         
         if (timeline > 500 && timeline < 600) showSubtitle("星河汇聚...", 2000);
-        if (timeline > 4000 && timeline < 4100) showSubtitle("只为你一人...", 2000);
-        if (timeline > 8000 && timeline < 8100) showSubtitle("圣诞快乐！", 2000);
-    }
-    
-    function drawGround(timeline) {
-        if (timeline < 1000) return;
-        const alpha = Math.min(1, (timeline - 1000) / 3000);
-        const fov = 800; const radius = 500;
-        ctx.save(); ctx.translate(width/2, height/2);
-        ctx.beginPath();
-        for(let i=0; i<=60; i++) {
-            const angle = (i/60)*Math.PI*2;
-            const x = Math.cos(angle)*radius; const z = Math.sin(angle)*radius;
-            const cos = Math.cos(angleY); const sin = Math.sin(angleY);
-            const rx = x*cos - z*sin; const rz = z*cos + x*sin;
-            const scale = fov / (fov + (rz - cameraZ));
-            const px = rx * scale; const py = (500 - 100) * scale;
-            if(i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.strokeStyle = `rgba(0, 255, 255, ${0.3 * alpha})`; ctx.lineWidth = 3;
-        ctx.shadowBlur = 10; ctx.shadowColor = '#0ff'; ctx.stroke(); ctx.restore();
+        if (timeline > 6000 && timeline < 6100) showSubtitle("圣诞快乐！", 2000);
     }
 
     function drawTopStar(timeline, cos, sin) {
-        if (timeline < 8000) return;
-        const ty = -750; const rz = 0 * cos + 0 * sin; const fov = 800;
-        const scale = fov / (fov + (rz - cameraZ));
+        if (timeline < 6000) return;
+        const ty = -750; const rz = 0 * cos + 0 * sin; 
+        const fov = 800; const scale = fov / (fov + (rz - cameraZ));
         const px = width/2; const py = height/2 + (ty - 100) * scale;
+        
         ctx.save(); ctx.translate(px, py); ctx.rotate(timeline * 0.002);
-        ctx.globalCompositeOperation = 'lighter'; ctx.beginPath();
-        ctx.fillStyle = "#FFD700"; ctx.shadowBlur = 50; ctx.shadowColor = "#FFD700";
-        for (let i = 0; i < 8; i++) {
-            ctx.lineTo(Math.cos(i*Math.PI/4)*50*scale, -Math.sin(i*Math.PI/4)*50*scale);
-            ctx.lineTo(Math.cos((i+0.5)*Math.PI/4)*15*scale, -Math.sin((i+0.5)*Math.PI/4)*15*scale);
+        ctx.beginPath(); ctx.fillStyle = "#FFD700"; 
+        ctx.shadowBlur = 30; ctx.shadowColor = "#FFD700";
+        for (let i = 0; i < 5; i++) {
+            ctx.lineTo(Math.cos(i*Math.PI/4)*40*scale, -Math.sin(i*Math.PI/4)*40*scale);
+            ctx.lineTo(Math.cos((i+0.5)*Math.PI/4)*12*scale, -Math.sin((i+0.5)*Math.PI/4)*12*scale);
         }
-        ctx.fill(); ctx.restore(); ctx.globalCompositeOperation = 'source-over';
+        ctx.fill(); ctx.restore(); ctx.shadowBlur = 0;
     }
 
     class Firework {
         constructor() {
             this.x = Math.random() * width; this.y = height;
             this.ty = height * 0.2 + Math.random() * height * 0.3;
-            this.vy = -12 - Math.random() * 5;
-            this.color = `hsl(${Math.random()*360},100%,70%)`;
-            this.state = 0; this.pt = []; this.trail = [];
+            this.vy = -10 - Math.random() * 5;
+            this.color = `hsl(${Math.random()*360},100%,60%)`;
+            this.state = 0; this.pt = [];
         }
         update() {
             if (this.state === 0) {
                 this.y += this.vy; this.vy += 0.2;
-                this.trail.push({x:this.x, y:this.y}); if(this.trail.length>8) this.trail.shift();
                 if (this.vy >= 0 || this.y < this.ty) {
                     this.state = 1;
-                    for (let i=0; i<60; i++) {
-                        const a = Math.random()*Math.PI*2; const s = Math.random()*5+1;
+                    for (let i=0; i<30; i++) { // 减少爆炸粒子数
+                        const a = Math.random()*Math.PI*2; const s = Math.random()*4+1;
                         this.pt.push({x:this.x, y:this.y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, alpha:1});
                     }
                 }
             } else {
-                this.pt.forEach(p => { p.x+=p.vx; p.y+=p.vy; p.vy+=0.1; p.alpha-=0.02; });
+                this.pt.forEach(p => { p.x+=p.vx; p.y+=p.vy; p.vy+=0.1; p.alpha-=0.03; });
                 if (this.pt[0] && this.pt[0].alpha <= 0) this.dead = true;
             }
         }
         draw() {
-            ctx.globalCompositeOperation = 'lighter';
+            ctx.fillStyle = this.color;
             if (this.state === 0) {
-                ctx.beginPath(); 
-                if(this.trail.length>1) {
-                    ctx.moveTo(this.trail[0].x, this.trail[0].y);
-                    for(let i=1;i<this.trail.length;i++) ctx.lineTo(this.trail[i].x, this.trail[i].y);
-                    ctx.strokeStyle=`rgba(255,255,255,0.3)`; ctx.stroke();
-                }
-                ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+                ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI*2); ctx.fill();
             } else {
                 this.pt.forEach(p => {
-                    ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
-                    ctx.fillStyle = this.color; ctx.globalAlpha = p.alpha; ctx.fill();
+                    ctx.globalAlpha = p.alpha;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
                 });
+                ctx.globalAlpha = 1;
             }
-            ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
         }
     }
 
     function startShow() {
         if (isPlaying) return;
-        isPlaying = true; // 防止重复点击
-        
-        // 播放音乐
+        isPlaying = true;
         document.getElementById('bgm').play().catch(()=>{});
-        
-        // 隐藏UI
         startScreen.style.opacity = 0;
-        setTimeout(() => startScreen.style.display = 'none', 1000);
-        
-        // 启动渲染
+        setTimeout(() => startScreen.style.display = 'none', 500);
         init();
         startTime = Date.now();
         loop();
